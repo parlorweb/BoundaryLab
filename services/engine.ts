@@ -24,7 +24,6 @@ export class PracticeEngine {
   static getSessionQuestions(session: PracticeSession): Question[] {
     const allQuestions = StorageService.getQuestions();
     const mastery = StorageService.getMastery(session.userId);
-    const queue = StorageService.getReviewQueue(session.userId);
     
     // Filtering logic based on mode
     let pool = allQuestions;
@@ -35,15 +34,24 @@ export class PracticeEngine {
       pool = allQuestions.filter(q => q.conceptIds.some(cid => weakConceptIds.includes(cid)));
     }
 
-    // Bucket Logic (Simplified for MVP demo)
-    // 1. Weak Concepts (40%)
-    // 2. Due for Review (30%)
-    // 3. Learning/Stable (20%)
-    // 4. New (10%)
-    
-    // Shuffle and pick
-    const shuffled = [...pool].sort(() => Math.random() - 0.5);
-    return shuffled.slice(0, session.targetCount);
+    // Shuffle and pick questions
+    const selectedQuestions = [...pool].sort(() => Math.random() - 0.5).slice(0, session.targetCount);
+
+    // Shuffle choices for each selected question (except for fill and matching types)
+    return selectedQuestions.map(q => {
+      if (q.type === 'fill' || q.type === 'matching') return q;
+      
+      const shuffledChoices = [...q.choices].sort(() => Math.random() - 0.5);
+      const keys = ['A', 'B', 'C', 'D', 'E', 'F'];
+      
+      return {
+        ...q,
+        choices: shuffledChoices.map((choice, index) => ({
+          ...choice,
+          choiceKey: keys[index] || choice.choiceKey
+        }))
+      };
+    });
   }
 
   static submitAnswer(
@@ -104,7 +112,7 @@ export class PracticeEngine {
       StorageService.updateReviewQueue(userId, cid, isCorrect);
     });
 
-    // Re-calculate readiness (Simplified)
+    // Re-calculate readiness
     this.recalculateReadiness(userId);
 
     return answer;
