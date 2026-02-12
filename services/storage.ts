@@ -2,7 +2,7 @@
 import { 
   User, Topic, Concept, Question, ConceptMastery, 
   ReviewQueueItem, PracticeSession, UserAnswer, Resource,
-  Difficulty, SessionMode
+  SavedQuestion, ReportedQuestion
 } from '../types';
 import { SEED_TOPICS, SEED_CONCEPTS, SEED_QUESTIONS, SEED_RESOURCES } from '../data/seed';
 
@@ -15,7 +15,9 @@ const STORAGE_KEYS = {
   TOPICS: 'bl_topics',
   CONCEPTS: 'bl_concepts',
   QUESTIONS: 'bl_questions',
-  RESOURCES: 'bl_resources'
+  RESOURCES: 'bl_resources',
+  SAVED_QUESTIONS: 'bl_saved_questions',
+  REPORTS: 'bl_reports'
 };
 
 export class StorageService {
@@ -73,107 +75,188 @@ export class StorageService {
     this.set(STORAGE_KEYS.CONCEPTS, concepts);
   }
 
-  static getQuestions(): Question[] { return this.get<Question[]>(STORAGE_KEYS.QUESTIONS, SEED_QUESTIONS); }
+  static getQuestions(includeFlags = false): Question[] { 
+    const qs = this.get<Question[]>(STORAGE_KEYS.QUESTIONS, SEED_QUESTIONS);
+    const user = this.getCurrentUser();
+    
+    // Admins see everything
+    if (user?.isAdmin) return qs;
+
+    // Regular users or guests
+    // Always filter out explicitly deactivated questions
+    const pool = qs.filter(q => q.isActive !== false);
+
+    // If includeFlags is true, we allow seeing flagged questions (e.g. for Saved list)
+    // but typically for practice sessions, we filter them out.
+    if (!includeFlags) {
+      return pool.filter(q => !q.isReported);
+    }
+    
+    return pool;
+  }
+
+  // Fixed typo: changed 'topic' to 'question' on line 100
   static saveQuestion(question: Question): void {
-    const questions = this.getQuestions();
+    const questions = this.get<Question[]>(STORAGE_KEYS.QUESTIONS, SEED_QUESTIONS);
     const idx = questions.findIndex(q => q.id === question.id);
     if (idx >= 0) questions[idx] = question; else questions.push(question);
     this.set(STORAGE_KEYS.QUESTIONS, questions);
   }
+
   static deleteQuestion(id: string): void {
-    const questions = this.getQuestions().filter(q => q.id !== id);
+    const questions = this.get<Question[]>(STORAGE_KEYS.QUESTIONS, SEED_QUESTIONS).filter(q => q.id !== id);
     this.set(STORAGE_KEYS.QUESTIONS, questions);
   }
 
-  static getResources(): Resource[] { return this.get<Resource[]>(STORAGE_KEYS.RESOURCES, SEED_RESOURCES); }
-
-  // --- Mastery & Engine ---
-  static getMastery(userId: string): ConceptMastery[] {
-    return this.get<ConceptMastery[]>(STORAGE_KEYS.MASTERY, []);
+  // --- Saved Questions ---
+  static getSavedQuestions(userId: string): SavedQuestion[] {
+    const all = this.get<SavedQuestion[]>(STORAGE_KEYS.SAVED_QUESTIONS, []);
+    return all.filter(s => s.userId === userId);
   }
 
-  static updateMastery(userId: string, conceptId: string, correct: boolean): void {
-    const mastery = this.getMastery(userId);
-    let item = mastery.find(m => m.conceptId === conceptId);
+  static isQuestionSaved(userId: string, questionId: string): boolean {
+    const saved = this.getSavedQuestions(userId);
+    return saved.some(s => s.questionId === questionId);
+  }
 
+  static toggleSavedQuestion(userId: string, questionId: string): void {
+    const all = this.get<SavedQuestion[]>(STORAGE_KEYS.SAVED_QUESTIONS, []);
+    const existingIdx = all.findIndex(s => s.userId === userId && s.questionId === questionId);
+    if (existingIdx >= 0) {
+      all.splice(existingIdx, 1);
+    } else {
+      all.push({ userId, questionId, savedAt: new Date().toISOString() });
+    }
+    this.set(STORAGE_KEYS.SAVED_QUESTIONS, all);
+  }
+
+  // --- Reported Questions ---
+  static getReports(): ReportedQuestion[] {
+    return this.get<ReportedQuestion[]>(STORAGE_KEYS.REPORTS, []);
+  }
+
+  static reportQuestion(userId: string, questionId: string, reason: string): void {
+    const reports = this.getReports();
+    reports.push({
+      id: Math.random().toString(36).substring(7),
+      userId,
+      questionId,
+      reason,
+      status: 'pending',
+      reportedAt: new Date().toISOString()
+    });
+    this.set(STORAGE_KEYS.REPORTS, reports);
+
+    // Flag the question as reported so it's pulled from the practice pool
+    const questions = this.get<Question[]>(STORAGE_KEYS.QUESTIONS, SEED_QUESTIONS);
+    const idx = questions.findIndex(q => q.id === questionId);
+    if (idx >= 0) {
+      questions[idx].isReported = true;
+      this.set(STORAGE_KEYS.QUESTIONS, questions);
+    }
+  }
+
+  // --- Report Resolution Logic ---
+  static resolveReport(reportId: string, action: 'dismiss' | 'fix' | 'deactivate'): void {
+    const reports = this.getReports();
+    const report = reports.find(r => r.id === reportId);
+    if (!report) return;
+
+    report.status = action === 'dismiss' ? 'dismissed' : 'resolved';
+    this.set(STORAGE_KEYS.REPORTS, reports);
+
+    const questions = this.get<Question[]>(STORAGE_KEYS.QUESTIONS, SEED_QUESTIONS);
+    const qIdx = questions.findIndex(q => q.id === report.questionId);
+    if (qIdx >= 0) {
+      if (action === 'deactivate') {
+        questions[qIdx].isActive = false;
+      } else if (action === 'dismiss' || action === 'fix') {
+        questions[qIdx].isReported = false;
+      }
+      this.set(STORAGE_KEYS.QUESTIONS, questions);
+    }
+  }
+
+  // --- Sessions, Answers & Mastery ---
+  static getSessions(userId: string): PracticeSession[] {
+    const all = this.get<PracticeSession[]>(STORAGE_KEYS.SESSIONS, []);
+    return all.filter(s => s.userId === userId);
+  }
+
+  static saveSession(session: PracticeSession): void {
+    const all = this.get<PracticeSession[]>(STORAGE_KEYS.SESSIONS, []);
+    const idx = all.findIndex(s => s.id === session.id);
+    if (idx >= 0) all[idx] = session; else all.push(session);
+    this.set(STORAGE_KEYS.SESSIONS, all);
+  }
+
+  static saveAnswer(answer: UserAnswer): void {
+    const all = this.get<UserAnswer[]>(STORAGE_KEYS.ANSWERS, []);
+    all.push(answer);
+    this.set(STORAGE_KEYS.ANSWERS, all);
+  }
+
+  static getMastery(userId: string): ConceptMastery[] {
+    const all = this.get<ConceptMastery[]>(STORAGE_KEYS.MASTERY, []);
+    return all.filter(m => m.userId === userId);
+  }
+
+  static updateMastery(userId: string, conceptId: string, isCorrect: boolean): void {
+    const all = this.get<ConceptMastery[]>(STORAGE_KEYS.MASTERY, []);
+    let item = all.find(m => m.userId === userId && m.conceptId === conceptId);
     if (!item) {
       item = {
-        userId, conceptId, masteryLevel: 0,
-        lifetimeAttempts: 0, lifetimeCorrect: 0, recentStreak: 0,
+        userId,
+        conceptId,
+        masteryLevel: 0,
+        lifetimeAttempts: 0,
+        lifetimeCorrect: 0,
+        recentStreak: 0,
         lastAttemptAt: new Date().toISOString()
       };
-      mastery.push(item);
+      all.push(item);
     }
-
     item.lifetimeAttempts++;
-    if (correct) {
+    if (isCorrect) {
       item.lifetimeCorrect++;
       item.recentStreak++;
-      
-      // Mastery logic: 
-      // Level 0 -> 1 after 2 correct answers (streak 2)
-      // Level 1 -> 2 after 2 more correct answers (streak 4)
-      // etc.
-      if (item.recentStreak > 0 && item.recentStreak % 2 === 0) {
-        item.masteryLevel = Math.min(5, item.masteryLevel + 1);
-      }
     } else {
       item.recentStreak = 0;
-      // Regression: drop level if streak is broken on low mastery
-      if (item.masteryLevel > 0) {
-        item.masteryLevel--;
-      }
     }
-    item.lastAttemptAt = new Date().toISOString();
     
-    this.set(STORAGE_KEYS.MASTERY, mastery);
+    // Update mastery level (0-5)
+    if (item.recentStreak >= 3) item.masteryLevel = Math.min(5, item.masteryLevel + 1);
+    const accuracy = item.lifetimeCorrect / item.lifetimeAttempts;
+    if (accuracy > 0.8 && item.lifetimeAttempts > 10) item.masteryLevel = Math.max(item.masteryLevel, 4);
+
+    item.lastAttemptAt = new Date().toISOString();
+    this.set(STORAGE_KEYS.MASTERY, all);
   }
 
   static getReviewQueue(userId: string): ReviewQueueItem[] {
-    return this.get<ReviewQueueItem[]>(STORAGE_KEYS.QUEUE, []);
+    const all = this.get<ReviewQueueItem[]>(STORAGE_KEYS.QUEUE, []);
+    return all.filter(q => q.userId === userId);
   }
 
-  static updateReviewQueue(userId: string, conceptId: string, correct: boolean): void {
-    const queue = this.getReviewQueue(userId);
-    let item = queue.find(q => q.conceptId === conceptId);
-
+  static updateReviewQueue(userId: string, conceptId: string, isCorrect: boolean): void {
+    const all = this.get<ReviewQueueItem[]>(STORAGE_KEYS.QUEUE, []);
+    let item = all.find(q => q.userId === userId && q.conceptId === conceptId);
     if (!item) {
       item = { userId, conceptId, dueAt: new Date().toISOString(), intervalDays: 1 };
-      queue.push(item);
+      all.push(item);
     }
-
-    if (correct) {
+    if (isCorrect) {
       item.intervalDays = Math.min(30, item.intervalDays * 2);
     } else {
       item.intervalDays = 1;
     }
-
     const nextDue = new Date();
     nextDue.setDate(nextDue.getDate() + item.intervalDays);
     item.dueAt = nextDue.toISOString();
-
-    this.set(STORAGE_KEYS.QUEUE, queue);
+    this.set(STORAGE_KEYS.QUEUE, all);
   }
 
-  // --- Sessions ---
-  static getSessions(userId: string): PracticeSession[] {
-    return this.get<PracticeSession[]>(STORAGE_KEYS.SESSIONS, []);
-  }
-
-  static saveSession(session: PracticeSession): void {
-    const sessions = this.getSessions(session.userId);
-    const existingIdx = sessions.findIndex(s => s.id === session.id);
-    if (existingIdx >= 0) {
-      sessions[existingIdx] = session;
-    } else {
-      sessions.push(session);
-    }
-    this.set(STORAGE_KEYS.SESSIONS, sessions);
-  }
-
-  static saveAnswer(answer: UserAnswer): void {
-    const answers = this.get<UserAnswer[]>(STORAGE_KEYS.ANSWERS, []);
-    answers.push(answer);
-    this.set(STORAGE_KEYS.ANSWERS, answers);
+  static getResources(): Resource[] {
+    return this.get<Resource[]>(STORAGE_KEYS.RESOURCES, SEED_RESOURCES);
   }
 }

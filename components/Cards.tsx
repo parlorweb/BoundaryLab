@@ -8,7 +8,7 @@ export const Card: React.FC<{
   headerAction?: React.ReactNode;
   noPadding?: boolean;
 }> = ({ children, title, className = "", headerAction, noPadding = false }) => (
-  <div className={`bg-white border border-slate-100 rounded-[24px] shadow-sm overflow-hidden transition-all hover:shadow-md hover:border-slate-200 ${className}`}>
+  <div className={`bg-white border border-slate-100 rounded-[24px] shadow-sm overflow-hidden transition-all duration-300 hover:shadow-lg hover:border-slate-200 hover:-translate-y-1 ${className}`}>
     {(title || headerAction) && (
       <div className="px-8 py-5 border-b border-slate-50 flex items-center justify-between bg-white">
         {title && <h3 className="text-base font-bold text-slate-900 tracking-tight">{title}</h3>}

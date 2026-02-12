@@ -1,7 +1,8 @@
 
 import React, { useState } from 'react';
 import { ICONS } from '../constants';
-import { Menu, X, History, Bell, Search } from 'lucide-react';
+import { Menu, X, History, Bell, Search, Bookmark } from 'lucide-react';
+import { StorageService } from '../services/storage';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -20,7 +21,7 @@ const NavLink: React.FC<{
 }> = ({ label, icon, active, badge, onClick }) => (
   <button
     onClick={onClick}
-    className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200 group ${
+    className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200 group active:scale-[0.98] ${
       active 
         ? 'bg-blue-600 text-white font-semibold shadow-lg shadow-blue-200' 
         : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
@@ -44,11 +45,13 @@ const NavLink: React.FC<{
 
 export const Layout: React.FC<LayoutProps> = ({ children, activePage, onNavigate, isAdmin }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const user = StorageService.getCurrentUser();
 
   const navigationItems = [
     { id: 'dashboard', label: 'Overview', icon: ICONS.Dashboard },
     { id: 'practice', label: 'Practice', icon: ICONS.Practice },
     { id: 'history', label: 'Session History', icon: <History size={18} /> },
+    { id: 'saved', label: 'Saved Questions', icon: <Bookmark size={18} /> },
     { id: 'focus', label: 'Focus Areas', icon: ICONS.Focus },
     { id: 'topics', label: 'Exam Topics', icon: ICONS.Topics },
     { id: 'resources', label: 'Library', icon: ICONS.Resources },
@@ -71,7 +74,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activePage, onNavigate
       `}>
         <div className="p-8 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-600 rounded-2xl flex items-center justify-center text-white font-black shadow-xl shadow-blue-100 transform -rotate-3 hover:rotate-0 transition-transform cursor-pointer">
+            <div className="w-10 h-10 bg-blue-600 rounded-2xl flex items-center justify-center text-white font-black shadow-xl shadow-blue-100 transform -rotate-3 hover:rotate-0 transition-transform cursor-pointer active:scale-95">
               BL
             </div>
             <div className="flex flex-col">
@@ -79,7 +82,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activePage, onNavigate
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">FS Exam Prep</span>
             </div>
           </div>
-          <button className="lg:hidden p-2 text-slate-400 hover:bg-slate-50 rounded-lg" onClick={() => setIsSidebarOpen(false)}>
+          <button className="lg:hidden p-2 text-slate-400 hover:bg-slate-50 rounded-lg active:scale-90 transition-transform" onClick={() => setIsSidebarOpen(false)}>
             <X size={20} />
           </button>
         </div>
@@ -108,13 +111,15 @@ export const Layout: React.FC<LayoutProps> = ({ children, activePage, onNavigate
         </nav>
 
         <div className="p-6 border-t border-slate-100">
-          <div className="group flex items-center gap-4 p-3 bg-slate-50 hover:bg-slate-100 rounded-2xl transition-colors cursor-pointer border border-transparent hover:border-slate-200">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white text-xs font-bold shadow-lg shadow-blue-100">
-              GS
+          <div className="group flex items-center gap-4 p-3 bg-slate-50 hover:bg-slate-100 rounded-2xl transition-all cursor-pointer border border-transparent hover:border-slate-200 active:scale-[0.98]">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white text-xs font-bold shadow-lg transition-transform group-hover:scale-105 ${user?.isGuest ? 'bg-slate-400' : 'bg-gradient-to-tr from-blue-600 to-indigo-600 shadow-blue-100'}`}>
+              {user?.displayName.substring(0, 2).toUpperCase()}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-slate-900 truncate">Guest Surveyor</p>
-              <p className="text-[10px] text-slate-500 truncate uppercase tracking-tighter">Level 12 • Candidate</p>
+              <p className="text-sm font-bold text-slate-900 truncate">{user?.displayName || 'Surveyor'}</p>
+              <p className="text-[10px] text-slate-500 truncate uppercase tracking-tighter">
+                {user?.isGuest ? 'Temporary Session' : 'Candidate • Level 12'}
+              </p>
             </div>
           </div>
         </div>
@@ -125,19 +130,19 @@ export const Layout: React.FC<LayoutProps> = ({ children, activePage, onNavigate
         {/* Top Navigation Bar */}
         <header className="h-20 bg-white/80 backdrop-blur-md border-b border-slate-100 flex items-center justify-between px-6 lg:px-10 sticky top-0 z-30">
           <div className="flex items-center gap-4 flex-1">
-            <button className="lg:hidden p-2 text-slate-600 hover:bg-slate-50 rounded-xl transition-colors" onClick={() => setIsSidebarOpen(true)}>
+            <button className="lg:hidden p-2 text-slate-600 hover:bg-slate-50 rounded-xl transition-all active:scale-90" onClick={() => setIsSidebarOpen(true)}>
               <Menu size={24} />
             </button>
-            <div className="hidden sm:flex items-center gap-3 bg-slate-50 border border-slate-100 px-4 py-2 rounded-2xl w-full max-w-md focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-100 transition-all">
-              <Search size={18} className="text-slate-400" />
+            <div className="hidden sm:flex items-center gap-3 bg-slate-50 border border-slate-100 px-4 py-2 rounded-2xl w-full max-w-md focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-100 transition-all group">
+              <Search size={18} className="text-slate-400 group-focus-within:text-blue-500 transition-colors" />
               <input type="text" placeholder="Search concepts, questions, or topics..." className="bg-transparent border-none outline-none text-sm w-full placeholder:text-slate-400" />
             </div>
           </div>
           
           <div className="flex items-center gap-3 sm:gap-6">
-            <button className="relative p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-all">
-              <Bell size={22} />
-              <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+            <button className="relative p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-all active:scale-90 group">
+              <Bell size={22} className="group-hover:rotate-12 transition-transform" />
+              <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white shadow-sm"></span>
             </button>
             <div className="h-8 w-px bg-slate-100 hidden sm:block"></div>
             <div className="flex items-center gap-3 pl-2">
@@ -157,16 +162,16 @@ export const Layout: React.FC<LayoutProps> = ({ children, activePage, onNavigate
       </div>
 
       {/* Mobile Bottom Navigation (Only on mobile) */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 h-20 bg-white/90 backdrop-blur-xl border-t border-slate-100 flex items-center justify-around px-4 z-40 pb-safe">
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 h-20 bg-white/90 backdrop-blur-xl border-t border-slate-100 flex items-center justify-around px-4 z-40 pb-safe shadow-[0_-8px_30px_rgb(0,0,0,0.04)]">
         {navigationItems.slice(0, 4).map(item => (
           <button
             key={item.id}
             onClick={() => onNavigate(item.id)}
-            className={`flex flex-col items-center justify-center gap-1.5 w-16 transition-all ${
+            className={`flex flex-col items-center justify-center gap-1.5 w-16 transition-all active:scale-90 ${
               activePage === item.id ? 'text-blue-600 scale-105' : 'text-slate-400 hover:text-slate-600'
             }`}
           >
-            <div className={`p-2 rounded-xl ${activePage === item.id ? 'bg-blue-50' : ''}`}>
+            <div className={`p-2 rounded-xl transition-colors ${activePage === item.id ? 'bg-blue-50 text-blue-600' : 'text-slate-400 group-hover:bg-slate-50'}`}>
               {item.icon}
             </div>
             <span className="text-[10px] font-bold uppercase tracking-tighter">{item.label.split(' ')[0]}</span>

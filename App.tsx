@@ -9,9 +9,11 @@ import { Topics } from './pages/Topics';
 import { Resources } from './pages/Resources';
 import { Admin } from './pages/Admin';
 import { SessionHistory } from './pages/SessionHistory';
+import { SavedQuestions } from './pages/SavedQuestions';
 import { TutorialPage, TutorialTopic } from './components/TutorialPage';
 import { SessionMode, User } from './types';
 import { StorageService } from './services/storage';
+import { ShieldAlert, Zap, X } from 'lucide-react';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -20,6 +22,7 @@ const App: React.FC = () => {
   const [selectedTopicId, setSelectedTopicId] = useState<string | undefined>(undefined);
   const [selectedTutorialId, setSelectedTutorialId] = useState<TutorialTopic | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [showGuestLimitModal, setShowGuestLimitModal] = useState(false);
 
   useEffect(() => {
     StorageService.init();
@@ -30,15 +33,32 @@ const App: React.FC = () => {
     setIsInitialized(true);
   }, []);
 
+  // Monitor guest session expiration
+  useEffect(() => {
+    if (!user?.isGuest || !user?.guestExpiresAt) return;
+
+    const interval = setInterval(() => {
+      const now = Date.now();
+      if (now >= (user.guestExpiresAt || 0)) {
+        setShowGuestLimitModal(true);
+        clearInterval(interval);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [user]);
+
   const handleLogin = () => {
     setUser(StorageService.getCurrentUser());
     setActivePage('dashboard');
+    setShowGuestLimitModal(false);
   };
 
   const handleLogout = () => {
     StorageService.logout();
     setUser(null);
     setActivePage('dashboard');
+    setShowGuestLimitModal(false);
   };
 
   const handleStartPractice = (mode: string, topicId?: string) => {
@@ -78,6 +98,8 @@ const App: React.FC = () => {
         return <Topics onStartTopicPractice={(id) => handleStartPractice('topic', id)} />;
       case 'history':
         return <SessionHistory />;
+      case 'saved':
+        return <SavedQuestions onStartSavedPractice={() => handleStartPractice('saved')} />;
       case 'resources':
         return <Resources onNavigateTutorial={handleNavigateTutorial} />;
       case 'tutorial':
@@ -119,6 +141,36 @@ const App: React.FC = () => {
       isAdmin={user.isAdmin}
     >
       {renderContent()}
+
+      {/* Guest Expiration Modal */}
+      {showGuestLimitModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-[100] p-6">
+          <div className="bg-white rounded-[40px] w-full max-w-lg p-10 md:p-14 text-center shadow-2xl animate-in zoom-in-95 duration-300 relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-2 bg-blue-600"></div>
+            <div className="w-20 h-20 bg-blue-50 text-blue-600 rounded-3xl flex items-center justify-center mx-auto mb-8">
+              <Zap size={40} className="fill-current" />
+            </div>
+            <h3 className="text-3xl font-black text-slate-900 tracking-tight mb-4">Guest Session Ended</h3>
+            <p className="text-slate-500 font-medium leading-relaxed mb-10">
+              Your 20-minute trial has concluded. To save your progress, track your readiness score, and access advanced analytics, please create a permanent account.
+            </p>
+            <div className="space-y-4">
+              <button 
+                onClick={handleLogout}
+                className="w-full py-5 bg-blue-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl shadow-blue-100 hover:bg-blue-700 active:scale-95 transition-all"
+              >
+                Sign Up & Save Progress
+              </button>
+              <button 
+                onClick={handleLogout}
+                className="w-full py-4 bg-white text-slate-400 rounded-2xl font-black text-xs uppercase tracking-widest hover:text-slate-600 transition-all"
+              >
+                Return to Login
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Layout>
   );
 };

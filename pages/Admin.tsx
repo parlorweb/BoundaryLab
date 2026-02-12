@@ -1,18 +1,12 @@
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Card } from '../components/Cards';
 import { StorageService } from '../services/storage';
-import { Question, Difficulty, QuestionType, Topic, Concept, Choice } from '../types';
-import { ICONS } from '../constants';
-import { Database, BookOpen, Lightbulb, Library, Trash2, Edit3, Plus, FileJson, Calculator, Sparkles, Loader2, ArrowRight } from 'lucide-react';
+import { Question, QuestionType, Topic, Concept, Choice, ReportedQuestion } from '../types';
+import { Database, BookOpen, Lightbulb, Library, Trash2, Edit3, Plus, FileJson, Calculator, Sparkles, Loader2, X, Check, Flag, AlertCircle } from 'lucide-react';
 import { GoogleGenAI, Type } from "@google/genai";
 
-const MetricCard: React.FC<{ 
-  label: string; 
-  value: number; 
-  icon: React.ReactNode; 
-  color: string 
-}> = ({ label, value, icon, color }) => (
+const MetricCard: ({ label, value, icon, color }: { label: string; value: number; icon: React.ReactNode; color: string }) => React.JSX.Element = ({ label, value, icon, color }) => (
   <div className="bg-white border border-slate-100 rounded-[24px] p-8 shadow-sm flex items-center gap-6 transition-all hover:shadow-lg hover:-translate-y-1">
     <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-inner ${color}`}>
       {icon}
@@ -24,18 +18,17 @@ const MetricCard: React.FC<{
   </div>
 );
 
-type AdminSection = 'questions' | 'concepts';
+type AdminSection = 'questions' | 'concepts' | 'reports';
 
 export const Admin: React.FC = () => {
   const [activeSection, setActiveSection] = useState<AdminSection>('questions');
   
-  // Data State
   const topics = StorageService.getTopics();
   const resources = StorageService.getResources();
   const [questions, setQuestions] = useState<Question[]>(StorageService.getQuestions());
   const [concepts, setConcepts] = useState<Concept[]>(StorageService.getConcepts());
+  const [reports, setReports] = useState<ReportedQuestion[]>(StorageService.getReports());
   
-  // Form State
   const [editingQuestion, setEditingQuestion] = useState<Partial<Question> | null>(null);
   const [editingConcept, setEditingConcept] = useState<Partial<Concept> | null>(null);
   const [showQuestionForm, setShowQuestionForm] = useState(false);
@@ -47,6 +40,12 @@ export const Admin: React.FC = () => {
       StorageService.deleteQuestion(id);
       setQuestions(StorageService.getQuestions());
     }
+  };
+
+  const handleResolveReport = (reportId: string, action: 'dismiss' | 'fix' | 'deactivate') => {
+    StorageService.resolveReport(reportId, action);
+    setReports(StorageService.getReports());
+    setQuestions(StorageService.getQuestions());
   };
 
   const handleSaveQuestion = (e: React.FormEvent) => {
@@ -63,14 +62,7 @@ export const Admin: React.FC = () => {
       explanation: editingQuestion.explanation || '',
       hint: editingQuestion.hint || '',
       source: editingQuestion.source || 'Admin Console',
-      choices: editingQuestion.choices || (qType === 'fill' ? [
-        { id: 'c1', choiceKey: 'Ans', text: '', isCorrect: true }
-      ] : [
-        { id: 'c1', choiceKey: 'A', text: '', isCorrect: true },
-        { id: 'c2', choiceKey: 'B', text: '', isCorrect: false },
-        { id: 'c3', choiceKey: 'C', text: '', isCorrect: false },
-        { id: 'c4', choiceKey: 'D', text: '', isCorrect: false },
-      ]),
+      choices: editingQuestion.choices || [],
       conceptIds: editingQuestion.conceptIds || []
     };
 
@@ -135,6 +127,38 @@ export const Admin: React.FC = () => {
     } finally { setIsGenerating(false); }
   };
 
+  const addChoice = () => {
+    if (!editingQuestion) return;
+    const currentChoices = editingQuestion.choices || [];
+    const keys = ['A', 'B', 'C', 'D', 'E', 'F'];
+    const nextKey = keys[currentChoices.length] || '?';
+    const newChoice: Choice = {
+      id: Math.random().toString(36).substring(7),
+      choiceKey: nextKey,
+      text: '',
+      isCorrect: currentChoices.length === 0
+    };
+    setEditingQuestion({ ...editingQuestion, choices: [...currentChoices, newChoice] });
+  };
+
+  const updateChoice = (id: string, updates: Partial<Choice>) => {
+    if (!editingQuestion?.choices) return;
+    const choices = editingQuestion.choices.map(c => {
+      if (c.id !== id) return c;
+      return { ...c, ...updates };
+    });
+    setEditingQuestion({ ...editingQuestion, choices });
+  };
+
+  const toggleConceptTag = (conceptId: string) => {
+    if (!editingQuestion) return;
+    const currentIds = editingQuestion.conceptIds || [];
+    const newIds = currentIds.includes(conceptId)
+      ? currentIds.filter(id => id !== conceptId)
+      : [...currentIds, conceptId];
+    setEditingQuestion({ ...editingQuestion, conceptIds: newIds });
+  };
+
   return (
     <div className="space-y-10 animate-in fade-in duration-500 pb-32">
       <header className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
@@ -149,10 +173,14 @@ export const Admin: React.FC = () => {
           </button>
           <button 
             onClick={() => {
-              if (activeSection === 'questions') { setEditingQuestion({ type: 'single' }); setShowQuestionForm(true); }
-              else { setEditingConcept({}); setShowConceptForm(true); }
+              if (activeSection === 'questions') { 
+                setEditingQuestion({ type: 'single', choices: [], conceptIds: [] }); 
+                setShowQuestionForm(true); 
+              }
+              else if (activeSection === 'concepts') { setEditingConcept({}); setShowConceptForm(true); }
             }}
-            className="flex-1 md:flex-none px-8 py-4 bg-blue-600 text-white rounded-[20px] text-xs font-black uppercase tracking-widest hover:bg-blue-700 transition-all flex items-center justify-center gap-3 shadow-xl shadow-blue-100"
+            className="flex-1 md:flex-none px-8 py-4 bg-blue-600 text-white rounded-[20px] text-xs font-black uppercase tracking-widest hover:bg-blue-700 transition-all flex items-center justify-center gap-3 shadow-xl shadow-blue-100 disabled:opacity-30"
+            disabled={activeSection === 'reports'}
           >
             <Plus size={18} strokeWidth={3} />
             Create {activeSection === 'questions' ? 'Question' : 'Concept'}
@@ -160,15 +188,13 @@ export const Admin: React.FC = () => {
         </div>
       </header>
 
-      {/* Metrics Grid */}
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <MetricCard label="Live Questions" value={questions.length} icon={<Database size={24} />} color="bg-blue-50 text-blue-600" />
         <MetricCard label="Active Topics" value={topics.length} icon={<BookOpen size={24} />} color="bg-indigo-50 text-indigo-600" />
-        <MetricCard label="Core Concepts" value={concepts.length} icon={<Lightbulb size={24} />} color="bg-amber-50 text-amber-600" />
+        <MetricCard label="Reports" value={reports.filter(r => r.status === 'pending').length} icon={<Flag size={24} />} color="bg-red-50 text-red-600" />
         <MetricCard label="Library Items" value={resources.length} icon={<Library size={24} />} color="bg-emerald-50 text-emerald-600" />
       </section>
 
-      {/* Navigation Tabs */}
       <div className="flex gap-2 p-1.5 bg-slate-100/50 w-fit rounded-2xl border border-slate-100">
         <button 
           onClick={() => setActiveSection('questions')}
@@ -181,6 +207,13 @@ export const Admin: React.FC = () => {
           className={`px-8 py-3 text-xs font-black uppercase tracking-widest transition-all rounded-xl ${activeSection === 'concepts' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
         >
           Concept Logic
+        </button>
+        <button 
+          onClick={() => setActiveSection('reports')}
+          className={`px-8 py-3 text-xs font-black uppercase tracking-widest transition-all rounded-xl ${activeSection === 'reports' ? 'bg-white text-red-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'} flex items-center gap-2`}
+        >
+          Reports Review
+          {reports.filter(r => r.status === 'pending').length > 0 && <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>}
         </button>
       </div>
 
@@ -200,7 +233,10 @@ export const Admin: React.FC = () => {
                 {questions.map(q => (
                   <tr key={q.id} className="group hover:bg-slate-50/30 transition-all">
                     <td className="px-8 py-6">
-                      <span className="px-2.5 py-1 bg-blue-50 text-[9px] font-black text-blue-600 rounded-lg uppercase tracking-widest">{q.type}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="px-2.5 py-1 bg-blue-50 text-[9px] font-black text-blue-600 rounded-lg uppercase tracking-widest">{q.type}</span>
+                        {q.isReported && <span className="px-2.5 py-1 bg-red-50 text-[9px] font-black text-red-600 rounded-lg uppercase tracking-widest">FLAGGED</span>}
+                      </div>
                     </td>
                     <td className="px-8 py-6">
                       <p className="text-sm font-bold text-slate-900 truncate max-w-md" title={q.prompt}>{q.prompt}</p>
@@ -225,14 +261,14 @@ export const Admin: React.FC = () => {
             </table>
           </div>
         </Card>
-      ) : (
+      ) : activeSection === 'concepts' ? (
         <Card noPadding>
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead>
                 <tr className="bg-slate-50/50">
                   <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Concept Metadata</th>
-                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Formula Status</th>
+                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Active Formula</th>
                   <th className="px-8 py-5 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Actions</th>
                 </tr>
               </thead>
@@ -245,12 +281,13 @@ export const Admin: React.FC = () => {
                     </td>
                     <td className="px-8 py-6">
                       {c.formula ? (
-                        <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full border border-emerald-100">
-                          <Calculator size={12} strokeWidth={3} />
-                          <span className="text-[9px] font-black uppercase tracking-widest">Active Reference</span>
+                        <div className="flex flex-col gap-1.5">
+                          <code className="text-[10px] font-mono text-blue-600 bg-blue-50/50 px-2 py-1 rounded border border-blue-100/50 max-w-[200px] truncate" title={c.formula}>
+                            {c.formula}
+                          </code>
                         </div>
                       ) : (
-                        <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest italic">Not Required</span>
+                        <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest italic">None Defined</span>
                       )}
                     </td>
                     <td className="px-8 py-6 text-right">
@@ -264,18 +301,78 @@ export const Admin: React.FC = () => {
             </table>
           </div>
         </Card>
+      ) : (
+        <div className="space-y-6">
+          {reports.filter(r => r.status === 'pending').length === 0 ? (
+            <div className="bg-white border-2 border-dashed border-slate-200 rounded-[32px] p-16 text-center">
+              <div className="w-16 h-16 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Check size={32} />
+              </div>
+              <h3 className="text-lg font-black text-slate-900">All Reports Cleared</h3>
+              <p className="text-slate-500 mt-2">No pending question reports to review.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4">
+              {reports.filter(r => r.status === 'pending').map(report => {
+                const q = questions.find(question => question.id === report.questionId);
+                return (
+                  <Card key={report.id} className="border-red-100">
+                    <div className="flex flex-col md:flex-row gap-8">
+                      <div className="flex-1 space-y-4">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-red-50 text-red-600 rounded-xl"><AlertCircle size={20} /></div>
+                          <div>
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Report Detail</p>
+                            <p className="text-base font-bold text-slate-900">{report.reason}</p>
+                          </div>
+                        </div>
+                        <div className="p-4 bg-slate-50 rounded-2xl">
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Question Context</p>
+                          <p className="text-sm font-medium text-slate-700 italic">"{q?.prompt}"</p>
+                        </div>
+                        <div className="flex items-center gap-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                          <span>Reported At: {new Date(report.reportedAt).toLocaleDateString()}</span>
+                          <span>User ID: {report.userId.substring(0, 8)}</span>
+                        </div>
+                      </div>
+                      <div className="flex md:flex-col gap-2 shrink-0 justify-center">
+                        <button 
+                          onClick={() => { setEditingQuestion(q || null); setShowQuestionForm(true); }}
+                          className="px-6 py-3 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
+                        >
+                          <Edit3 size={14} /> Fix Question
+                        </button>
+                        <button 
+                          onClick={() => handleResolveReport(report.id, 'dismiss')}
+                          className="px-6 py-3 bg-slate-100 text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all flex items-center justify-center gap-2"
+                        >
+                          <Check size={14} /> Dismiss
+                        </button>
+                        <button 
+                          onClick={() => handleResolveReport(report.id, 'deactivate')}
+                          className="px-6 py-3 bg-red-50 text-red-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-100 transition-all flex items-center justify-center gap-2"
+                        >
+                          <Trash2 size={14} /> Deactivate
+                        </button>
+                      </div>
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </div>
       )}
 
-      {/* Forms Overlay Style */}
       {showQuestionForm && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md flex items-center justify-center z-[60] p-6 overflow-y-auto">
-          <div className="bg-white rounded-[40px] w-full max-w-3xl p-10 md:p-14 max-h-[90vh] overflow-y-auto shadow-2xl animate-in zoom-in-95 duration-300">
+          <div className="bg-white rounded-[40px] w-full max-w-4xl p-10 md:p-14 max-h-[90vh] overflow-y-auto shadow-2xl animate-in zoom-in-95 duration-300">
             <div className="flex items-center justify-between mb-10">
               <h3 className="text-2xl font-black text-slate-900 tracking-tight">{editingQuestion?.id ? 'Update Question' : 'New Mastery Unit'}</h3>
               <button onClick={() => setShowQuestionForm(false)} className="p-3 hover:bg-slate-50 rounded-2xl text-slate-400"><X size={20} /></button>
             </div>
             <form onSubmit={handleSaveQuestion} className="space-y-8">
-              <div className="grid grid-cols-2 gap-8">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Syllabus Topic</label>
                   <select className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-sm focus:ring-4 focus:ring-blue-100 outline-none transition-all" value={editingQuestion?.topicId || ''} onChange={e => setEditingQuestion({...editingQuestion, topicId: e.target.value})}>
@@ -288,14 +385,87 @@ export const Admin: React.FC = () => {
                     <option value="single">Single Response</option>
                     <option value="multi">Multi Selection</option>
                     <option value="fill">Calculation Output</option>
-                    <option value="matching">Association Matrix</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Difficulty</label>
+                  <select className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-sm focus:ring-4 focus:ring-blue-100 outline-none transition-all" value={editingQuestion?.difficulty || 3} onChange={e => setEditingQuestion({...editingQuestion, difficulty: parseInt(e.target.value) as any})}>
+                    {[1, 2, 3, 4, 5].map(v => <option key={v} value={v}>Level {v}</option>)}
                   </select>
                 </div>
               </div>
+
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Educational Prompt</label>
-                <textarea className="w-full p-6 bg-slate-50 border border-slate-200 rounded-3xl font-medium text-slate-900 focus:ring-4 focus:ring-blue-100 outline-none transition-all min-h-[140px]" value={editingQuestion?.prompt || ''} onChange={e => setEditingQuestion({...editingQuestion, prompt: e.target.value})} placeholder="Describe the problem context clearly..." required />
+                <textarea className="w-full p-6 bg-slate-50 border border-slate-200 rounded-3xl font-medium text-slate-900 focus:ring-4 focus:ring-blue-100 outline-none transition-all min-h-[120px]" value={editingQuestion?.prompt || ''} onChange={e => setEditingQuestion({...editingQuestion, prompt: e.target.value})} placeholder="Describe the problem context clearly..." required />
               </div>
+
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Question Choices</label>
+                  <button type="button" onClick={addChoice} className="text-[10px] font-black text-blue-600 flex items-center gap-1.5 hover:underline">
+                    <Plus size={14} /> Add Choice
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 gap-3">
+                  {(editingQuestion?.choices || []).map((choice, index) => (
+                    <div key={choice.id} className="flex gap-3 items-center group">
+                      <button 
+                        type="button"
+                        onClick={() => updateChoice(choice.id, { isCorrect: !choice.isCorrect })}
+                        className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all ${choice.isCorrect ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-100' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}
+                      >
+                        {choice.isCorrect ? <Check size={20} strokeWidth={3} /> : choice.choiceKey}
+                      </button>
+                      <input 
+                        className="flex-1 p-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-medium focus:bg-white outline-none transition-all"
+                        value={choice.text}
+                        onChange={e => updateChoice(choice.id, { text: e.target.value })}
+                        placeholder={`Choice ${choice.choiceKey} text...`}
+                      />
+                      <button 
+                        type="button"
+                        onClick={() => setEditingQuestion({ ...editingQuestion, choices: (editingQuestion.choices || []).filter(c => c.id !== choice.id) })}
+                        className="p-3 text-red-400 opacity-0 group-hover:opacity-100 hover:bg-red-50 rounded-xl transition-all"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Associated Concepts</label>
+                <div className="flex flex-wrap gap-2">
+                  {concepts.filter(c => c.topicId === editingQuestion?.topicId).map(c => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => toggleConceptTag(c.id)}
+                      className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                        editingQuestion?.conceptIds?.includes(c.id)
+                          ? 'bg-blue-600 text-white shadow-md'
+                          : 'bg-slate-100 text-slate-400 hover:bg-slate-200'
+                      }`}
+                    >
+                      {c.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Detailed Explanation</label>
+                  <textarea className="w-full p-6 bg-slate-50 border border-slate-200 rounded-3xl text-sm font-medium focus:bg-white outline-none min-h-[100px]" value={editingQuestion?.explanation || ''} onChange={e => setEditingQuestion({...editingQuestion, explanation: e.target.value})} placeholder="Why is the correct answer correct?" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Strategic Hint</label>
+                  <textarea className="w-full p-6 bg-slate-50 border border-slate-200 rounded-3xl text-sm font-medium focus:bg-white outline-none min-h-[100px]" value={editingQuestion?.hint || ''} onChange={e => setEditingQuestion({...editingQuestion, hint: e.target.value})} placeholder="Nudge the student without revealing the solution..." />
+                </div>
+              </div>
+
               <div className="flex gap-4 pt-6">
                 <button type="button" onClick={() => setShowQuestionForm(false)} className="flex-1 py-5 bg-slate-100 text-slate-600 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-slate-200 transition-all">Cancel</button>
                 <button type="submit" className="flex-1 py-5 bg-blue-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl shadow-blue-100 hover:bg-blue-700 active:scale-95 transition-all">Publish Question</button>
@@ -335,14 +505,19 @@ export const Admin: React.FC = () => {
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Knowledge Summary</label>
-                <textarea className="w-full p-6 bg-slate-50 border border-slate-200 rounded-3xl font-medium text-sm focus:ring-4 focus:ring-blue-100 outline-none min-h-[100px]" value={editingConcept?.summary || ''} onChange={e => setEditingConcept({...editingConcept, summary: e.target.value})} required />
+                <textarea className="w-full p-6 bg-slate-50 border border-slate-200 rounded-3xl font-medium text-sm focus:ring-4 focus:ring-blue-100 outline-none min-h-[100px]" value={editingConcept?.summary || ''} onChange={setEditingConcept ? (e) => setEditingConcept({...editingConcept, summary: e.target.value}) : undefined} required />
               </div>
               <div className="bg-blue-50 p-8 rounded-[32px] border border-blue-100">
                 <div className="flex items-center gap-3 mb-4">
                   <Calculator size={18} className="text-blue-600" />
                   <label className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Active Formula (Optional)</label>
                 </div>
-                <textarea className="w-full p-5 bg-white border border-blue-200 rounded-2xl font-mono text-sm text-blue-900 focus:ring-4 focus:ring-blue-200 outline-none min-h-[60px]" value={editingConcept?.formula || ''} onChange={e => setEditingConcept({...editingConcept, formula: e.target.value})} />
+                <textarea 
+                  className="w-full p-5 bg-white border border-blue-200 rounded-2xl font-mono text-sm text-blue-900 focus:ring-4 focus:ring-blue-200 outline-none min-h-[60px]" 
+                  value={editingConcept?.formula || ''} 
+                  onChange={e => setEditingConcept({...editingConcept, formula: e.target.value})} 
+                  placeholder="e.g., LEOC = sqrt((ΣLat)² + (ΣDep)²)"
+                />
               </div>
               <div className="flex gap-4 pt-6">
                 <button type="button" onClick={() => setShowConceptForm(false)} className="flex-1 py-5 bg-slate-100 text-slate-600 rounded-2xl font-black text-xs uppercase tracking-widest transition-all">Discard</button>
@@ -355,7 +530,3 @@ export const Admin: React.FC = () => {
     </div>
   );
 };
-
-const X = ({ size = 20 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-);

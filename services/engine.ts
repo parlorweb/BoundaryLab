@@ -24,20 +24,57 @@ export class PracticeEngine {
   static getSessionQuestions(session: PracticeSession): Question[] {
     const allQuestions = StorageService.getQuestions();
     const mastery = StorageService.getMastery(session.userId);
+    const queue = StorageService.getReviewQueue(session.userId);
+    const allAnswers = JSON.parse(localStorage.getItem('bl_answers') || '[]') as UserAnswer[];
     
     // Filtering logic based on mode
     let pool = allQuestions;
+
     if (session.mode === 'topic' && session.topicId) {
       pool = allQuestions.filter(q => q.topicId === session.topicId);
     } else if (session.mode === 'focus') {
       const weakConceptIds = mastery.filter(m => m.masteryLevel <= 1).map(m => m.conceptId);
       pool = allQuestions.filter(q => q.conceptIds.some(cid => weakConceptIds.includes(cid)));
+    } else if (session.mode === 'saved') {
+      const saved = StorageService.getSavedQuestions(session.userId);
+      const savedIds = saved.map(s => s.questionId);
+      pool = allQuestions.filter(q => savedIds.includes(q.id));
+    } else {
+      // Adaptive Mix Logic:
+      // 1. Exclude questions answered correctly in last 24h
+      const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000);
+      const recentCorrectIds = allAnswers
+        .filter(a => a.userId === session.userId && a.isCorrect && new Date(a.answeredAt).getTime() > oneDayAgo)
+        .map(a => a.questionId);
+      
+      pool = allQuestions.filter(q => !recentCorrectIds.includes(q.id));
+
+      // 2. Prioritize based on concept status
+      const weakConceptIds = mastery.filter(m => m.masteryLevel <= 1).map(m => m.conceptId);
+      const dueConceptIds = queue.filter(q => new Date(q.dueAt) <= new Date()).map(q => q.conceptId);
+      
+      // Shuffle pool initially
+      pool = [...pool].sort(() => Math.random() - 0.5);
+
+      // We want a mix: ~40% weak, ~30% due, ~20% learning/stable, ~10% new
+      const weightedPool: Question[] = [];
+      
+      const weakQs = pool.filter(q => q.conceptIds.some(cid => weakConceptIds.includes(cid)));
+      const dueQs = pool.filter(q => q.conceptIds.some(cid => dueConceptIds.includes(cid)));
+      const otherQs = pool.filter(q => !weakQs.includes(q) && !dueQs.includes(q));
+
+      const target = session.targetCount;
+      weightedPool.push(...weakQs.slice(0, Math.ceil(target * 0.4)));
+      weightedPool.push(...dueQs.filter(q => !weightedPool.includes(q)).slice(0, Math.ceil(target * 0.3)));
+      weightedPool.push(...otherQs.filter(q => !weightedPool.includes(q)).slice(0, target - weightedPool.length));
+      
+      pool = weightedPool;
     }
 
-    // Shuffle and pick questions
+    // Final shuffle and pick
     const selectedQuestions = [...pool].sort(() => Math.random() - 0.5).slice(0, session.targetCount);
 
-    // Shuffle choices for each selected question (except for fill and matching types)
+    // Shuffle choices for each selected question
     return selectedQuestions.map(q => {
       if (q.type === 'fill' || q.type === 'matching') return q;
       
@@ -77,7 +114,6 @@ export class PracticeEngine {
         .map(c => c.text.trim().toLowerCase());
       isCorrect = correctAnswers.includes(userInput);
     } else if (question.type === 'matching') {
-      // selectedIds format: ["choiceId:value", ...]
       isCorrect = question.choices.every(choice => {
         const pairing = selectedIds.find(s => s.startsWith(`${choice.id}:`));
         if (!pairing) return false;

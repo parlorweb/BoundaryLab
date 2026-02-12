@@ -1,7 +1,6 @@
-
 export type Difficulty = 1 | 2 | 3 | 4 | 5;
 export type QuestionType = 'single' | 'multi' | 'fill' | 'matching';
-export type SessionMode = 'adaptive' | 'topic' | 'focus';
+export type SessionMode = 'adaptive' | 'topic' | 'focus' | 'saved';
 
 export interface User {
   id: string;
@@ -9,6 +8,8 @@ export interface User {
   displayName: string;
   isAdmin: boolean;
   readinessScore: number;
+  isGuest?: boolean;
+  guestExpiresAt?: number;
 }
 
 export interface Topic {
@@ -49,6 +50,23 @@ export interface Question {
   source: string;
   choices: Choice[];
   conceptIds: string[];
+  isReported?: boolean;
+  isActive?: boolean;
+}
+
+export interface SavedQuestion {
+  userId: string;
+  questionId: string;
+  savedAt: string;
+}
+
+export interface ReportedQuestion {
+  id: string;
+  userId: string;
+  questionId: string;
+  reason: string;
+  status: 'pending' | 'resolved' | 'dismissed';
+  reportedAt: string;
 }
 
 export interface ConceptMastery {

@@ -4,7 +4,7 @@ import { Card, ProgressBar } from '../components/Cards';
 import { ICONS, TIPS, MASTERY_LABELS } from '../constants';
 import { StorageService } from '../services/storage';
 import { Topic, Concept, PracticeSession, ConceptMastery } from '../types';
-import { TrendingUp, Award, Zap, BookOpen, Clock } from 'lucide-react';
+import { TrendingUp, Award, Zap, BookOpen, Clock, Bookmark } from 'lucide-react';
 
 interface DashboardProps {
   onStartPractice: (mode: string) => void;
@@ -18,8 +18,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onStartPractice, onNavigat
   const queue = StorageService.getReviewQueue(user?.id || '');
   const sessions = StorageService.getSessions(user?.id || '');
   const concepts = StorageService.getConcepts();
+  const savedQuestions = StorageService.getSavedQuestions(user?.id || '');
 
   const dueCount = queue.filter(q => new Date(q.dueAt) <= new Date()).length;
+  const savedCount = savedQuestions.length;
   
   const weakMasteryItems = mastery
     .filter(m => m.masteryLevel <= 1)
@@ -181,14 +183,40 @@ export const Dashboard: React.FC<DashboardProps> = ({ onStartPractice, onNavigat
                 <p className="text-[10px] font-bold text-orange-600 uppercase tracking-widest mt-1">Spaced Repetition</p>
               </div>
             </div>
-            <div className="p-6 bg-white rounded-3xl border border-orange-100 shadow-sm text-center">
-              <p className="text-4xl font-black text-slate-900">{dueCount}</p>
-              <p className="text-xs font-bold text-slate-400 mt-1">Concepts Due Today</p>
+            <div className="space-y-4">
+              <div className="p-5 bg-white rounded-3xl border border-orange-100 shadow-sm flex items-center justify-between">
+                <div className="text-left">
+                  <p className="text-2xl font-black text-slate-900">{dueCount}</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Concepts Due</p>
+                </div>
+                <button 
+                  onClick={() => onStartPractice('adaptive')}
+                  disabled={dueCount === 0}
+                  className="px-4 py-2.5 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-800 disabled:opacity-20 transition-all shadow-md active:scale-95"
+                >
+                  Review Due
+                </button>
+              </div>
+
+              <div className="p-5 bg-white rounded-3xl border border-blue-100 shadow-sm flex items-center justify-between">
+                <div className="text-left">
+                  <p className="text-2xl font-black text-slate-900">{savedCount}</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Saved Questions</p>
+                </div>
+                <button 
+                  onClick={() => onStartPractice('saved')}
+                  disabled={savedCount === 0}
+                  className="px-4 py-2.5 bg-blue-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-700 disabled:opacity-20 transition-all shadow-md active:scale-95"
+                >
+                  Review Saved
+                </button>
+              </div>
+              
               <button 
-                disabled={dueCount === 0}
-                className="w-full mt-6 py-3 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-800 disabled:opacity-20 transition-all shadow-lg active:scale-95"
+                onClick={() => onNavigate('saved')}
+                className="w-full py-3 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-colors flex items-center justify-center gap-2"
               >
-                Clear Queue
+                <Bookmark size={12} /> View All Saved
               </button>
             </div>
           </Card>
