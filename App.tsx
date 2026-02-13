@@ -1,4 +1,6 @@
 
+'use client';
+
 import React, { useState, useEffect } from 'react';
 import { Layout } from './components/Layout';
 import { Login } from './pages/Login';
@@ -13,7 +15,7 @@ import { SavedQuestions } from './pages/SavedQuestions';
 import { TutorialPage, TutorialTopic } from './components/TutorialPage';
 import { SessionMode, User } from './types';
 import { StorageService } from './services/storage';
-import { ShieldAlert, Zap, X } from 'lucide-react';
+import { Zap } from 'lucide-react';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -33,7 +35,6 @@ const App: React.FC = () => {
     setIsInitialized(true);
   }, []);
 
-  // Monitor guest session expiration
   useEffect(() => {
     if (!user?.isGuest || !user?.guestExpiresAt) return;
 
@@ -112,7 +113,8 @@ const App: React.FC = () => {
         return (
           <div className="space-y-6">
             <h2 className="text-2xl font-bold">Settings</h2>
-            <Card title="Account">
+            <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+              <h3 className="text-sm font-semibold text-slate-900 mb-4">Account</h3>
               <p className="text-sm text-slate-600 mb-4">You are logged in as {user.displayName}</p>
               <button 
                 onClick={handleLogout}
@@ -120,7 +122,7 @@ const App: React.FC = () => {
               >
                 Sign Out
               </button>
-            </Card>
+            </div>
           </div>
         );
       default:
@@ -130,19 +132,14 @@ const App: React.FC = () => {
 
   if (!isInitialized) return null;
 
-  if (!user) {
-    return <Login onLogin={handleLogin} />;
-  }
-
   return (
     <Layout 
       activePage={activePage === 'session' ? 'practice' : activePage === 'tutorial' ? 'resources' : activePage} 
       onNavigate={setActivePage}
-      isAdmin={user.isAdmin}
+      isAdmin={user?.isAdmin}
     >
       {renderContent()}
 
-      {/* Guest Expiration Modal */}
       {showGuestLimitModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-[100] p-6">
           <div className="bg-white rounded-[40px] w-full max-w-lg p-10 md:p-14 text-center shadow-2xl animate-in zoom-in-95 duration-300 relative overflow-hidden">
@@ -176,10 +173,3 @@ const App: React.FC = () => {
 };
 
 export default App;
-
-const Card: React.FC<{ children: React.ReactNode, title?: string }> = ({ children, title }) => (
-  <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
-    {title && <h3 className="text-sm font-semibold text-slate-900 mb-4">{title}</h3>}
-    {children}
-  </div>
-);

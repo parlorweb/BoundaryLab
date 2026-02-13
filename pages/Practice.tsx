@@ -1,11 +1,13 @@
 
+'use client';
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { MASTERY_LABELS } from '../constants';
 import { Card, ProgressBar } from '../components/Cards';
 import { StorageService } from '../services/storage';
 import { PracticeEngine } from '../services/engine';
-import { Question, PracticeSession, SessionMode, UserAnswer, Concept } from '../types';
-import { CheckCircle2, XCircle, ChevronRight, Calculator, Lightbulb, Clock, ArrowLeft, BookOpen, AlertTriangle, Bookmark, Flag, X, Check } from 'lucide-react';
+import { Question, PracticeSession, SessionMode, UserAnswer } from '../types';
+import { CheckCircle2, XCircle, ChevronRight, Calculator, Lightbulb, Clock, ArrowLeft, AlertTriangle, Bookmark, Flag, X } from 'lucide-react';
 
 interface PracticeProps {
   mode: SessionMode;
@@ -81,7 +83,6 @@ export const Practice: React.FC<PracticeProps> = ({ mode, topicId, onExit }) => 
     StorageService.reportQuestion(user.id, currentQuestion.id, reportReason);
     setShowReportModal(false);
     setReportReason('');
-    // Optionally move to next question automatically if reported
     handleNext();
   };
 
@@ -368,7 +369,7 @@ export const Practice: React.FC<PracticeProps> = ({ mode, topicId, onExit }) => 
                     <div className="space-y-3">
                       <div className="space-y-1">
                         <div className="flex items-center gap-1.5 text-[8px] font-black text-slate-400 uppercase tracking-widest">
-                          <BookOpen size={10} className="text-blue-500" />
+                          <Clock size={10} className="text-blue-500" />
                           Syllabus
                         </div>
                         <p className="text-[11px] text-slate-600 leading-relaxed font-semibold bg-slate-50/50 p-2.5 rounded-lg border border-slate-100">{concept.summary}</p>
@@ -403,7 +404,6 @@ export const Practice: React.FC<PracticeProps> = ({ mode, topicId, onExit }) => 
         </div>
       </div>
 
-      {/* Report Modal */}
       {showReportModal && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md flex items-center justify-center z-[100] p-6">
           <div className="bg-white rounded-[32px] w-full max-w-lg p-8 shadow-2xl animate-in zoom-in-95 duration-300">

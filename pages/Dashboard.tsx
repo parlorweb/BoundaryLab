@@ -1,9 +1,10 @@
 
-import React, { useEffect, useState } from 'react';
+'use client';
+
+import React from 'react';
 import { Card, ProgressBar } from '../components/Cards';
-import { ICONS, TIPS, MASTERY_LABELS } from '../constants';
+import { TIPS, MASTERY_LABELS } from '../constants';
 import { StorageService } from '../services/storage';
-import { Topic, Concept, PracticeSession, ConceptMastery } from '../types';
 import { TrendingUp, Award, Zap, BookOpen, Clock, Bookmark } from 'lucide-react';
 
 interface DashboardProps {
@@ -34,7 +35,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onStartPractice, onNavigat
 
   return (
     <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      {/* Hero / Greeting */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         <div className="space-y-1">
           <h2 className="text-3xl font-black text-slate-900 tracking-tight">Hey, {user.displayName.split(' ')[0]} 👋</h2>
@@ -63,9 +63,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onStartPractice, onNavigat
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Left Column: Practice & Stats */}
         <div className="lg:col-span-8 space-y-8">
-          {/* Main CTA Card */}
           <div className="relative overflow-hidden bg-slate-900 rounded-[32px] p-10 text-white shadow-2xl shadow-blue-100 group">
             <div className="absolute top-0 right-0 -mt-10 -mr-10 w-64 h-64 bg-blue-600 rounded-full blur-[100px] opacity-20 group-hover:opacity-30 transition-opacity"></div>
             <div className="relative z-10 flex flex-col md:flex-row items-center gap-10">
@@ -112,7 +110,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onStartPractice, onNavigat
             </div>
           </div>
 
-          {/* Topic Progress */}
           <Card title="Concept Proficiency Matrix" headerAction={
             <button onClick={() => onNavigate('topics')} className="text-xs font-bold text-blue-600 hover:bg-blue-50 px-3 py-1.5 rounded-lg transition-colors">See Detailed Syllabus</button>
           }>
@@ -138,7 +135,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onStartPractice, onNavigat
             </div>
           </Card>
 
-          {/* Activity Chart Placeholder Style */}
           <Card title="Performance Analytics (Last 7 Days)">
             <div className="h-56 flex items-end justify-between gap-4 px-2">
               {sessions.slice(-14).map((s, i) => {
@@ -170,9 +166,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onStartPractice, onNavigat
           </Card>
         </div>
 
-        {/* Right Column: Widgets */}
         <div className="lg:col-span-4 space-y-8">
-          {/* Spaced Repetition Widget */}
           <Card className="bg-gradient-to-br from-white to-orange-50/20 border-orange-100">
              <div className="flex items-center gap-4 mb-6">
               <div className="w-14 h-14 bg-orange-100 text-orange-600 rounded-2xl flex items-center justify-center shadow-inner border border-white">
@@ -221,7 +215,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onStartPractice, onNavigat
             </div>
           </Card>
 
-          {/* Focus Needed */}
           <Card title="Focus Needed">
             {weakMasteryItems.length > 0 ? (
               <div className="space-y-6">
@@ -264,7 +257,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onStartPractice, onNavigat
             )}
           </Card>
 
-          {/* Study Tip */}
           <div className="bg-gradient-to-tr from-blue-600 to-indigo-700 rounded-[32px] p-8 text-white shadow-xl shadow-blue-200 relative overflow-hidden group">
             <div className="absolute -bottom-10 -right-10 opacity-10 group-hover:scale-110 transition-transform">
               <BookOpen size={120} />
