@@ -21,27 +21,35 @@ const STORAGE_KEYS = {
 };
 
 export class StorageService {
+  private static isBrowser(): boolean {
+    return typeof window !== 'undefined';
+  }
+
   private static get<T>(key: string, defaultValue: T): T {
-    if (typeof window === 'undefined') return defaultValue;
-    const data = localStorage.getItem(key);
-    return data ? JSON.parse(data) : defaultValue;
+    if (!this.isBrowser()) return defaultValue;
+    try {
+      const data = localStorage.getItem(key);
+      return data ? JSON.parse(data) : defaultValue;
+    } catch (e) {
+      return defaultValue;
+    }
   }
 
   private static set(key: string, data: any): void {
-    if (typeof window === 'undefined') return;
-    localStorage.setItem(key, JSON.stringify(data));
+    if (!this.isBrowser()) return;
+    try {
+      localStorage.setItem(key, JSON.stringify(data));
+    } catch (e) {}
   }
 
-  // --- Initialization ---
   static init(): void {
-    if (typeof window === 'undefined') return;
+    if (!this.isBrowser()) return;
     if (!localStorage.getItem(STORAGE_KEYS.TOPICS)) this.set(STORAGE_KEYS.TOPICS, SEED_TOPICS);
     if (!localStorage.getItem(STORAGE_KEYS.CONCEPTS)) this.set(STORAGE_KEYS.CONCEPTS, SEED_CONCEPTS);
     if (!localStorage.getItem(STORAGE_KEYS.QUESTIONS)) this.set(STORAGE_KEYS.QUESTIONS, SEED_QUESTIONS);
     if (!localStorage.getItem(STORAGE_KEYS.RESOURCES)) this.set(STORAGE_KEYS.RESOURCES, SEED_RESOURCES);
   }
 
-  // --- Profile & Auth ---
   static getCurrentUser(): User | null {
     return this.get<User | null>(STORAGE_KEYS.USER, null);
   }
@@ -51,7 +59,7 @@ export class StorageService {
   }
 
   static logout(): void {
-    if (typeof window !== 'undefined') {
+    if (this.isBrowser()) {
       localStorage.removeItem(STORAGE_KEYS.USER);
     }
   }
@@ -63,7 +71,6 @@ export class StorageService {
     this.set(STORAGE_KEYS.USER, user);
   }
 
-  // --- Static Data with Mutations ---
   static getTopics(): Topic[] { return this.get<Topic[]>(STORAGE_KEYS.TOPICS, SEED_TOPICS); }
   static saveTopic(topic: Topic): void {
     const topics = this.getTopics();
@@ -83,15 +90,9 @@ export class StorageService {
   static getQuestions(includeFlags = false): Question[] { 
     const qs = this.get<Question[]>(STORAGE_KEYS.QUESTIONS, SEED_QUESTIONS);
     const user = this.getCurrentUser();
-    
-    if (user?.isAdmin) return qs;
-
     const pool = qs.filter(q => q.isActive !== false);
-
-    if (!includeFlags) {
-      return pool.filter(q => !q.isReported);
-    }
-    
+    if (user?.isAdmin) return qs;
+    if (!includeFlags) return pool.filter(q => !q.isReported);
     return pool;
   }
 

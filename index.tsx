@@ -1,1 +1,0 @@
-// This file is replaced by the Next.js App Router in /app/page.tsx. Please delete this file.
