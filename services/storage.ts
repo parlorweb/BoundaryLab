@@ -22,16 +22,19 @@ const STORAGE_KEYS = {
 
 export class StorageService {
   private static get<T>(key: string, defaultValue: T): T {
+    if (typeof window === 'undefined') return defaultValue;
     const data = localStorage.getItem(key);
     return data ? JSON.parse(data) : defaultValue;
   }
 
   private static set(key: string, data: any): void {
+    if (typeof window === 'undefined') return;
     localStorage.setItem(key, JSON.stringify(data));
   }
 
   // --- Initialization ---
   static init(): void {
+    if (typeof window === 'undefined') return;
     if (!localStorage.getItem(STORAGE_KEYS.TOPICS)) this.set(STORAGE_KEYS.TOPICS, SEED_TOPICS);
     if (!localStorage.getItem(STORAGE_KEYS.CONCEPTS)) this.set(STORAGE_KEYS.CONCEPTS, SEED_CONCEPTS);
     if (!localStorage.getItem(STORAGE_KEYS.QUESTIONS)) this.set(STORAGE_KEYS.QUESTIONS, SEED_QUESTIONS);
@@ -48,7 +51,9 @@ export class StorageService {
   }
 
   static logout(): void {
-    localStorage.removeItem(STORAGE_KEYS.USER);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(STORAGE_KEYS.USER);
+    }
   }
 
   static updateUserReadiness(score: number): void {
@@ -79,15 +84,10 @@ export class StorageService {
     const qs = this.get<Question[]>(STORAGE_KEYS.QUESTIONS, SEED_QUESTIONS);
     const user = this.getCurrentUser();
     
-    // Admins see everything
     if (user?.isAdmin) return qs;
 
-    // Regular users or guests
-    // Always filter out explicitly deactivated questions
     const pool = qs.filter(q => q.isActive !== false);
 
-    // If includeFlags is true, we allow seeing flagged questions (e.g. for Saved list)
-    // but typically for practice sessions, we filter them out.
     if (!includeFlags) {
       return pool.filter(q => !q.isReported);
     }
@@ -95,7 +95,6 @@ export class StorageService {
     return pool;
   }
 
-  // Fixed typo: changed 'topic' to 'question' on line 100
   static saveQuestion(question: Question): void {
     const questions = this.get<Question[]>(STORAGE_KEYS.QUESTIONS, SEED_QUESTIONS);
     const idx = questions.findIndex(q => q.id === question.id);
@@ -108,7 +107,6 @@ export class StorageService {
     this.set(STORAGE_KEYS.QUESTIONS, questions);
   }
 
-  // --- Saved Questions ---
   static getSavedQuestions(userId: string): SavedQuestion[] {
     const all = this.get<SavedQuestion[]>(STORAGE_KEYS.SAVED_QUESTIONS, []);
     return all.filter(s => s.userId === userId);
@@ -130,7 +128,6 @@ export class StorageService {
     this.set(STORAGE_KEYS.SAVED_QUESTIONS, all);
   }
 
-  // --- Reported Questions ---
   static getReports(): ReportedQuestion[] {
     return this.get<ReportedQuestion[]>(STORAGE_KEYS.REPORTS, []);
   }
@@ -147,7 +144,6 @@ export class StorageService {
     });
     this.set(STORAGE_KEYS.REPORTS, reports);
 
-    // Flag the question as reported so it's pulled from the practice pool
     const questions = this.get<Question[]>(STORAGE_KEYS.QUESTIONS, SEED_QUESTIONS);
     const idx = questions.findIndex(q => q.id === questionId);
     if (idx >= 0) {
@@ -156,7 +152,6 @@ export class StorageService {
     }
   }
 
-  // --- Report Resolution Logic ---
   static resolveReport(reportId: string, action: 'dismiss' | 'fix' | 'deactivate'): void {
     const reports = this.getReports();
     const report = reports.find(r => r.id === reportId);
@@ -177,7 +172,6 @@ export class StorageService {
     }
   }
 
-  // --- Sessions, Answers & Mastery ---
   static getSessions(userId: string): PracticeSession[] {
     const all = this.get<PracticeSession[]>(STORAGE_KEYS.SESSIONS, []);
     return all.filter(s => s.userId === userId);
@@ -224,7 +218,6 @@ export class StorageService {
       item.recentStreak = 0;
     }
     
-    // Update mastery level (0-5)
     if (item.recentStreak >= 3) item.masteryLevel = Math.min(5, item.masteryLevel + 1);
     const accuracy = item.lifetimeCorrect / item.lifetimeAttempts;
     if (accuracy > 0.8 && item.lifetimeAttempts > 10) item.masteryLevel = Math.max(item.masteryLevel, 4);

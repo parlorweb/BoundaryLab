@@ -1,11 +1,12 @@
-
-import { useState } from 'react';
+// Fix: Import React to provide namespace for ReactNode, FC, FormEvent, and JSX.Element
+import React, { useState } from 'react';
 import { Card } from '../components/Cards';
 import { StorageService } from '../services/storage';
 import { Question, QuestionType, Topic, Concept, Choice, ReportedQuestion } from '../types';
 import { Database, BookOpen, Lightbulb, Library, Trash2, Edit3, Plus, FileJson, Calculator, Sparkles, Loader2, X, Check, Flag, AlertCircle } from 'lucide-react';
 import { GoogleGenAI, Type } from "@google/genai";
 
+// Fix: Use React.ReactNode and React.JSX.Element types
 const MetricCard: ({ label, value, icon, color }: { label: string; value: number; icon: React.ReactNode; color: string }) => React.JSX.Element = ({ label, value, icon, color }) => (
   <div className="bg-white border border-slate-100 rounded-[24px] p-8 shadow-sm flex items-center gap-6 transition-all hover:shadow-lg hover:-translate-y-1">
     <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-inner ${color}`}>
@@ -20,6 +21,7 @@ const MetricCard: ({ label, value, icon, color }: { label: string; value: number
 
 type AdminSection = 'questions' | 'concepts' | 'reports';
 
+// Fix: Use React.FC type
 export const Admin: React.FC = () => {
   const [activeSection, setActiveSection] = useState<AdminSection>('questions');
   
@@ -48,6 +50,7 @@ export const Admin: React.FC = () => {
     setQuestions(StorageService.getQuestions());
   };
 
+  // Fix: Use React.FormEvent type
   const handleSaveQuestion = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingQuestion) return;
@@ -72,6 +75,7 @@ export const Admin: React.FC = () => {
     setEditingQuestion(null);
   };
 
+  // Fix: Use React.FormEvent type
   const handleSaveConcept = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingConcept) return;
@@ -505,7 +509,7 @@ export const Admin: React.FC = () => {
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Knowledge Summary</label>
-                <textarea className="w-full p-6 bg-slate-50 border border-slate-200 rounded-3xl font-medium text-sm focus:ring-4 focus:ring-blue-100 outline-none min-h-[100px]" value={editingConcept?.summary || ''} onChange={setEditingConcept ? (e) => setEditingConcept({...editingConcept, summary: e.target.value}) : undefined} required />
+                <textarea className="w-full p-6 bg-slate-50 border border-slate-200 rounded-3xl font-medium text-sm focus:ring-4 focus:ring-blue-100 outline-none min-h-[100px]" value={editingConcept?.summary || ''} onChange={(e) => setEditingConcept({...editingConcept, summary: e.target.value})} required />
               </div>
               <div className="bg-blue-50 p-8 rounded-[32px] border border-blue-100">
                 <div className="flex items-center gap-3 mb-4">
