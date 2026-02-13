@@ -1,4 +1,6 @@
 
+'use client';
+
 import React, { useEffect, useState } from 'react';
 import { Card, ProgressBar } from '../components/Cards';
 import { ICONS, TIPS, MASTERY_LABELS } from '../constants';
@@ -138,7 +140,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onStartPractice, onNavigat
             </div>
           </Card>
 
-          {/* Activity Chart Placeholder Style */}
+          {/* Performance Analytics (Last 7 Days) */}
           <Card title="Performance Analytics (Last 7 Days)">
             <div className="h-56 flex items-end justify-between gap-4 px-2">
               {sessions.slice(-14).map((s, i) => {
@@ -172,7 +174,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onStartPractice, onNavigat
 
         {/* Right Column: Widgets */}
         <div className="lg:col-span-4 space-y-8">
-          {/* Spaced Repetition Widget */}
+          {/* Review Queue Widget */}
           <Card className="bg-gradient-to-br from-white to-orange-50/20 border-orange-100">
              <div className="flex items-center gap-4 mb-6">
               <div className="w-14 h-14 bg-orange-100 text-orange-600 rounded-2xl flex items-center justify-center shadow-inner border border-white">
@@ -221,7 +223,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onStartPractice, onNavigat
             </div>
           </Card>
 
-          {/* Focus Needed */}
+          {/* Focus Needed Widget */}
           <Card title="Focus Needed">
             {weakMasteryItems.length > 0 ? (
               <div className="space-y-6">
@@ -264,7 +266,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onStartPractice, onNavigat
             )}
           </Card>
 
-          {/* Study Tip */}
+          {/* Study Tip Widget */}
           <div className="bg-gradient-to-tr from-blue-600 to-indigo-700 rounded-[32px] p-8 text-white shadow-xl shadow-blue-200 relative overflow-hidden group">
             <div className="absolute -bottom-10 -right-10 opacity-10 group-hover:scale-110 transition-transform">
               <BookOpen size={120} />
