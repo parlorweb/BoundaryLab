@@ -1,6 +1,4 @@
 
-'use client';
-
 import React, { useState } from 'react';
 import { ICONS } from '../constants';
 import { Menu, X, History, Bell, Search, Bookmark } from 'lucide-react';
