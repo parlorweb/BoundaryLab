@@ -1,6 +1,3 @@
-
-'use client';
-
 import React, { useState, useEffect } from 'react';
 import { Layout } from './components/Layout';
 import { Login } from './pages/Login';
@@ -25,10 +22,8 @@ const App: React.FC = () => {
   const [selectedTutorialId, setSelectedTutorialId] = useState<TutorialTopic | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
   const [showGuestLimitModal, setShowGuestLimitModal] = useState(false);
-  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
     StorageService.init();
     const currentUser = StorageService.getCurrentUser();
     if (currentUser) {
@@ -51,7 +46,7 @@ const App: React.FC = () => {
     return () => clearInterval(interval);
   }, [user]);
 
-  if (!mounted || !isInitialized) return null;
+  if (!isInitialized) return null;
 
   const handleLogin = () => {
     setUser(StorageService.getCurrentUser());

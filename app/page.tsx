@@ -1,8 +1,1 @@
-
-'use client';
-
-import App from '../App';
-
-export default function Home() {
-  return <App />;
-}
+// Reverted to root index.html and index.tsx.
