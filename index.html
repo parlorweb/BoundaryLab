@@ -23,6 +23,7 @@ const { useState, useEffect, useMemo, useCallback, useRef } = React;
 // SEED DATA
 // ═══════════════════════════════════════════════════════════════
 const EXAMS = [
+  { id: 'all', name: 'All', fullName: 'All Questions', description: 'All 190+ questions across FS, PS, and Oregon exams', color: '#dc6b19', icon: '🦞' },
   { id: 'fs', name: 'FS', fullName: 'Fundamentals of Surveying', description: 'NCEES national exam · 110 questions · 6 hours · Closed book', color: '#2563eb', icon: '📐' },
   { id: 'ps', name: 'PS', fullName: 'Principles & Practice of Surveying', description: 'NCEES national exam · 100 questions · 7 hours · Closed book', color: '#8b5cf6', icon: '📏' },
   { id: 'or', name: 'Oregon', fullName: 'Oregon State-Specific', description: 'OSBEELS exam · 4 hours · Open book · OR statutes & OCRS', color: '#059669', icon: '🌲' },
@@ -790,7 +791,7 @@ const DashboardPage = ({ user, onStartPractice, onNavigate, selectedExam }) => {
   const examTips = TIPS.filter(t => !t.examIds || t.examIds.includes(selectedExam));
   const [tipIdx] = useState(() => Math.floor(Math.random() * Math.max(examTips.length, 1)));
   const tip = examTips[tipIdx % Math.max(examTips.length, 1)];
-  const topics = SEED_TOPICS.filter(t => !selectedExam || t.examIds?.includes(selectedExam));
+  const topics = SEED_TOPICS.filter(t => !selectedExam || selectedExam === 'all' || (selectedExam === 'all' || t.examIds?.includes(selectedExam)) || selectedExam === 'all');
   const questions = SEED_QUESTIONS.filter(q => topics.some(t => t.id === q.topicId));
   const [answers, setAnswers] = useState([]);
   const [mastery, setMastery] = useState([]);
@@ -834,7 +835,7 @@ const DashboardPage = ({ user, onStartPractice, onNavigate, selectedExam }) => {
 // FLASH CARDS
 // ═══════════════════════════════════════════════════════════════
 const FlashCardsPage = ({ selectedExam, user }) => {
-  const topics = SEED_TOPICS.filter(t => !selectedExam || t.examIds?.includes(selectedExam));
+  const topics = SEED_TOPICS.filter(t => !selectedExam || selectedExam === 'all' || (selectedExam === 'all' || t.examIds?.includes(selectedExam)) || selectedExam === 'all');
   const questions = useMemo(() => [...SEED_QUESTIONS.filter(q => topics.some(t => t.id === q.topicId))].sort(() => Math.random()-0.5), [selectedExam]);
   const [idx, setIdx] = useState(0);
   const [flipped, setFlipped] = useState(false);
@@ -865,7 +866,7 @@ const FlashCardsPage = ({ selectedExam, user }) => {
 // TRUE / FALSE
 // ═══════════════════════════════════════════════════════════════
 const TrueFalsePage = ({ selectedExam, user }) => {
-  const topics = SEED_TOPICS.filter(t=>!selectedExam||t.examIds?.includes(selectedExam));
+  const topics = SEED_TOPICS.filter(t=>!selectedExam||(selectedExam === 'all' || t.examIds?.includes(selectedExam)) || selectedExam === 'all');
   const allQ = useMemo(()=>SEED_QUESTIONS.filter(q=>topics.some(t=>t.id===q.topicId)),[selectedExam]);
   const [stmts,setStmts] = useState([]);
   const [idx,setIdx] = useState(0);
@@ -967,7 +968,7 @@ const SectionGame = ({ user }) => {
 // TOPICS, HISTORY, MISSED, PROFICIENCY, RESOURCES, FLAGGED
 // ═══════════════════════════════════════════════════════════════
 const TopicsPage = ({ onStart, selectedExam }) => {
-  const topics = SEED_TOPICS.filter(t=>!selectedExam||t.examIds?.includes(selectedExam));
+  const topics = SEED_TOPICS.filter(t=>!selectedExam||(selectedExam === 'all' || t.examIds?.includes(selectedExam)) || selectedExam === 'all');
   const exam = EXAMS.find(e=>e.id===selectedExam);
   return (React.createElement("div", {"style": { display:'flex',flexDirection:'column',gap:12,animation:'fadeUp 0.4s ease' }}, React.createElement("div", null, React.createElement("h2", {"style": {fontSize:22,fontFamily:'var(--font-display)',fontWeight:400,color:'var(--text-primary)'}}, "Topics"), exam&&React.createElement("p", {"style": {fontSize:12,color:'var(--text-secondary)'}}, React.createElement("strong", {"style": {color:'var(--accent)'}}, exam.icon, exam.fullName))), topics.map(t=>{const qc=SEED_QUESTIONS.filter(q=>q.topicId===t.id&&(!selectedExam||q.examIds?.includes(selectedExam))).length,cc=SEED_CONCEPTS.filter(c=>c.topicId===t.id).length;return(
       React.createElement(Card, {"key": t.id, "style": {display:'flex',alignItems:'center',justifyContent:'space-between',padding:16,opacity:qc===0?0.5:1}}, React.createElement("div", null, React.createElement("div", {"style": {display:'flex',alignItems:'center',gap:6,marginBottom:3}}, React.createElement("p", {"style": {fontSize:14,fontWeight:700,color:'var(--text-primary)'}}, t.name), t.weight&&React.createElement(Pill, {"label": t.weight+'%', "color": "var(--green)"})), React.createElement("p", {"style": {fontSize:11,color:'var(--text-secondary)'}}, t.description), React.createElement("p", {"style": {fontSize:10,color:qc===0?'var(--red)':'var(--text-tertiary)',marginTop:3}}, cc, "concepts ·", qc, "question", qc!==1?'s':'', qc===0?' — coming soon':'')), React.createElement(Btn, {"small": true, "primary": true, "onClick": ()=>onStart(t.id), "disabled": qc===0}, "Practice")));})));
@@ -986,7 +987,7 @@ const MissedPage = ({ user }) => {
 const ProficiencyPage = ({ user, selectedExam }) => {
   const [mas,setMas]=useState([]);const [ans,setAns]=useState([]);
   useEffect(()=>{Promise.all([store.get('bl_mastery_'+user.id,[]),store.get('bl_answers_'+user.id,[])]).then(([m,a])=>{setMas(m);setAns(a);});},[]);
-  const topics=SEED_TOPICS.filter(t=>!selectedExam||t.examIds?.includes(selectedExam));
+  const topics=SEED_TOPICS.filter(t=>!selectedExam||(selectedExam === 'all' || t.examIds?.includes(selectedExam)) || selectedExam === 'all');
   const tids=new Set(topics.map(t=>t.id));const con=SEED_CONCEPTS.filter(c=>tids.has(c.topicId));
   const ea=ans.filter(a=>{const q=SEED_QUESTIONS.find(x=>x.id===a.questionId);return q&&tids.has(q.topicId);});
   const em=mas.filter(m=>{const c=SEED_CONCEPTS.find(x=>x.id===m.conceptId);return c&&tids.has(c.topicId);});
@@ -1199,7 +1200,7 @@ const FlaggedPage = ({ user }) => {
 // MAIN APP
 // ═══════════════════════════════════════════════════════════════
 function App() {
-  const [user,setUser]=useState(null);const [page,setPage]=useState('dashboard');const [selExam,setSelExam]=useState('or');const [sideOpen,setSideOpen]=useState(false);const [pMode,setPMode]=useState(null);const [pTopic,setPTopic]=useState(null);const [ready,setReady]=useState(false);const [ww,setWw]=useState(typeof window!=='undefined'?window.innerWidth:1200);
+  const [user,setUser]=useState(null);const [page,setPage]=useState('dashboard');const [selExam,setSelExam]=useState('all');const [sideOpen,setSideOpen]=useState(false);const [pMode,setPMode]=useState(null);const [pTopic,setPTopic]=useState(null);const [ready,setReady]=useState(false);const [ww,setWw]=useState(typeof window!=='undefined'?window.innerWidth:1200);
   const [dark,setDark]=useState(true);
   const [difficulty,setDifficulty]=useState(5); // max difficulty shown (1-5)
   const [userMenuOpen,setUserMenuOpen]=useState(false);
